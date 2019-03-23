@@ -11,6 +11,7 @@ from aiokafka.errors import KafkaError
 from io import BytesIO
 import ssl
 import json
+import re
 
 import tar_extractor
 
@@ -30,19 +31,15 @@ logger.setLevel(logging.DEBUG)
 # Asynchronous event loop
 MAIN_LOOP = asyncio.get_event_loop()
 
-# List of valid topics
-VOLUME_TYPE_VALIDATION = 'platform.upload.aivolumetypevalidation'
-
 # Kafka listener config
 SERVER = os.environ.get('KAFKA_SERVER')
-VOLUME_TYPE_VALIDATION_TOPIC = os.environ.get('VOLUME_TYPE_VALIDATION_TOPIC')
+CONSUMER_TOPIC = os.environ.get('KAFKA_CONSUMER_TOPIC')
 PRODUCER_TOPIC = os.environ.get('KAFKA_PRODUCER_TOPIC')
 GROUP_ID = os.environ.get('KAFKA_CLIENT_GROUP')
 CLIENT_ID = uuid4()
 
 CONSUMER = AIOKafkaConsumer(
-               VOLUME_TYPE_VALIDATION_TOPIC,
-               # Add other topics here from other use cases
+               CONSUMER_TOPIC,
                loop=MAIN_LOOP,
                client_id=CLIENT_ID,
                group_id=GROUP_ID,
@@ -99,7 +96,7 @@ async def recommendations(msg_id: str, topic: str, message: dict):
                         ]
 
                         host_item = {
-                            'source': 'aiops',
+                            'source': rule_id,
                             'host_product': 'OCP',
                             'host_role': 'Cluster',
                             'inventory_id': host_info['inventory_id'],
@@ -181,7 +178,7 @@ async def init_kafka_resources() -> None:
     logger.info('Connecting to Kafka server...')
     logger.info('Configuration:')
     logger.info('\tserver:    %s', SERVER)
-    logger.info('\tVolume Type Validation Topic:     %s', VOLUME_TYPE_VALIDATION_TOPIC)
+    logger.info('\tConsumer Topic:     %s', CONSUMER_TOPIC)
     logger.info('\tProducer Topic:     %s', PRODUCER_TOPIC)
     logger.info('\tgroup_id:  %s', GROUP_ID)
     logger.info('\tclient_id: %s', CLIENT_ID)
@@ -205,10 +202,7 @@ async def init_kafka_resources() -> None:
 
 
 def get_rule_id(topic):
-    rules = {
-        VOLUME_TYPE_VALIDATION: "wrong_volume_type",
-    }
-    return rules.get(topic)
+    return re.search(r"(?<=platform.upload.).*", topic).group(0)
 
 
 def main():
@@ -216,7 +210,7 @@ def main():
     if __name__ == '__main__':
         # Check environment variables passed to container
         # pylama:ignore=C0103
-        env = {'KAFKA_SERVER', 'VOLUME_TYPE_VALIDATION_TOPIC', 'KAFKA_PRODUCER_TOPIC'}
+        env = {'KAFKA_SERVER', 'KAFKA_CONSUMER_TOPIC', 'KAFKA_PRODUCER_TOPIC'}
 
         if not env.issubset(os.environ):
             logger.error(
