@@ -99,13 +99,12 @@ async def recommendations(msg_id: str, topic: str, message: dict):
 
     for host_info in hosts.values():
         hits = []
-        if host_info['recommendations']:
-            hits.append(
-                {
-                    'rule_id': ai_service,
-                    'details': host_info
-                }
-            )
+        hits.append(
+            {
+                'rule_id': ai_service,
+                'details': host_info
+            }
+        )
 
         output = {
             'source': ai_service,
