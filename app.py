@@ -10,7 +10,6 @@ from uuid import uuid4
 import aiohttp
 from aiokafka import AIOKafkaConsumer, ConsumerRecord, AIOKafkaProducer
 from aiokafka.errors import KafkaError
-import re
 
 import tar_extractor
 
@@ -35,6 +34,7 @@ SERVER = os.environ.get('KAFKA_SERVER')
 CONSUMER_TOPIC = os.environ.get('KAFKA_CONSUMER_TOPIC')
 PRODUCER_TOPIC = os.environ.get('KAFKA_PRODUCER_TOPIC')
 GROUP_ID = os.environ.get('KAFKA_CLIENT_GROUP')
+AI_SERVICE = os.environ.get('AI_SERVICE')
 CLIENT_ID = uuid4()
 
 CONSUMER = AIOKafkaConsumer(
@@ -93,21 +93,17 @@ async def recommendations(msg_id: str, topic: str, message: dict):
     # JSON Processing
     hosts = json.loads(data.decode())['hosts']
 
-    # Retrieve the ai_service name
-    # which will be used as rule_id and source
-    ai_service = re.search(r"(?<=platform.upload.).*", topic).group(0)
-
     for host_info in hosts.values():
         hits = []
         hits.append(
             {
-                'rule_id': ai_service,
+                'rule_id': AI_SERVICE,
                 'details': host_info
             }
         )
 
         output = {
-            'source': ai_service,
+            'source': AI_SERVICE,
             'host_product': 'OCP',
             'host_role': 'Cluster',
             'inventory_id': host_info['inventory_id'],
